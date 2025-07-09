@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ShoppingCart, User, Menu } from "lucide-react"; // lucide-react 설치했다면 그대로 사용
+import Image from "next/image";
 
 export default function Header() {
   return (
@@ -13,9 +13,10 @@ export default function Header() {
           href="/"
           className="flex items-center text-2xl font-bold text-gray-900 mr-8"
         >
-          {/* <Image src="/logo.png" alt="Faank Logo" width={100} height={30}/ > */}
-          Faank
+          <Image src="/logo.png" alt="Faank Logo" width={100} height={30} />
         </Link>
+
+        {/* 내비게이션 메뉴 */}
         <nav className="hidden md:flex flex-grow justify-center space-x-8">
           <Link
             href="/about"
