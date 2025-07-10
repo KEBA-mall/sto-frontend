@@ -1,11 +1,13 @@
 // src/components/layout/Header.tsx
-
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@/app/contexts/AuthContext";
 
-export default function Header() {
+const Header: React.FC = () => {
+  const { isLoggedIn, logout } = useAuth();
+
   return (
     <header className="w-full bg-white shadow-sm border-b border-gray-200 py-4 px-6 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center">
@@ -44,18 +46,35 @@ export default function Header() {
             농수산물 투자하기
           </button>
         </Link>
-        <Link
-          href="/auth/login"
-          className="text-gray-700 hover:text-green-600 font-medium transition duration-200"
-        >
-          로그인
-        </Link>
-        <Link
-          href="/auth/register"
-          className="text-gray-700 hover:text-green-600 font-medium transition duration-200"
-        >
-          회원가입
-        </Link>
+
+        {isLoggedIn ? (
+          <>
+            <Link href="/mypage" className="text-gray-600 hover:text-gray-900">
+              마이페이지
+            </Link>
+            <button
+              onClick={logout}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              로그아웃
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/auth/login"
+              className="text-gray-600 hover:text-gray-900"
+            >
+              로그인
+            </Link>
+            <Link
+              href="/auth/register"
+              className="text-gray-600 hover:text-gray-900"
+            >
+              회원가입
+            </Link>
+          </>
+        )}
       </div>
       <div className="md:hidden">
         <button className="text-gray-700 focus:outline-none">
@@ -77,4 +96,5 @@ export default function Header() {
       </div>
     </header>
   );
-}
+};
+export default Header;
