@@ -24,7 +24,10 @@ const ServiceNotReadyModal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
         <p className="text-lg font-semibold mb-6">{message}</p>
         <button
