@@ -1,9 +1,13 @@
 // src/app/(main)/page.tsx
 
-"use client";
-
 import Link from "next/link";
 import Image from "next/image"; // Image 컴포넌트가 임포트되어 있는지 확인
+import type { Metadata } from "next"; // Metadata 타입 import
+
+export const metadata: Metadata = {
+  title: "메인 페이지",
+  description: "홈페이지",
+};
 
 export default function HomePage() {
   return (

@@ -39,7 +39,7 @@ export default function Header() {
         </nav>
       </div>
       <div className="flex items-center space-x-4">
-        <Link href="/investment/products" passHref>
+        <Link href="/investment" passHref>
           <button className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 shadow-md">
             농수산물 투자하기
           </button>
