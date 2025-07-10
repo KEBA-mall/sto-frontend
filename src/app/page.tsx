@@ -1,6 +1,5 @@
 // src/app/(main)/page.tsx
 
-import Link from "next/link";
 import Image from "next/image"; // Image 컴포넌트가 임포트되어 있는지 확인
 import type { Metadata } from "next"; // Metadata 타입 import
 
