@@ -2,25 +2,27 @@
 import type { Metadata } from "next";
 
 interface InvestmentDetailPageProps {
-  params: {
+  params: Promise<{
     id: string; // URL의 [id] 부분에 해당하는 값
-  };
+  }>;
 }
 
 // 메타데이터는 동적으로 생성될 수 있습니다.
 export async function generateMetadata({
   params,
 }: InvestmentDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+
   return {
-    title: `투자상품 상세: ${params.id}`,
-    description: `투자상품 ID ${params.id} 상세 정보`,
+    title: `투자상품 상세: ${id}`,
+    description: `투자상품 ID ${id} 상세 정보`,
   };
 }
 
-export default function InvestmentDetailPage({
+export default async function InvestmentDetailPage({
   params,
 }: InvestmentDetailPageProps) {
-  const { id } = params; // params 객체에서 id를 바로 구조 분해 할당
+  const { id } = await params; // params 객체에서 id를 바로 구조 분해 할당
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
