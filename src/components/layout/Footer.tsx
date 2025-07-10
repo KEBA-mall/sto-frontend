@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="bg-gray-800 text-white p-6 text-center mt-auto">
       {" "}
       {/* mt-auto 추가하여 하단에 붙도록 */}
-      <p>&copy; 2025 서비스이름. All rights reserved.</p>
+      <p>&copy; 2025 FAANK. All rights reserved.</p>
       <div className="flex justify-center space-x-4 mt-2">
         <Link href="/privacy" className="hover:underline">
           개인정보처리방침
