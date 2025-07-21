@@ -1,39 +1,11 @@
-// app/auth/login/page.tsx
-"use client"; // 클라이언트 컴포넌트로 지정
+// app/auth/login/page.tsx (FastAPI 연동 버전)
+"use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/contexts/AuthContext"; // useAuth 훅 임포트 경로 수정
+import { useAuth } from "@/app/contexts/AuthContext";
+import { authAPI } from "@/lib/api";
 import Link from "next/link";
-
-// FastAPI API 함수
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface LoginResponse {
-  success: boolean;
-  data?: {
-    access_token: string;
-    token_type: string;
-    user: {
-      user_id: number;
-      phone_number: string;
-      user_type: string;
-    };
-  };
-  message?: string;
-}
-
-const loginWithFastAPI = async (
-  phoneNumber: string,
-  password: string
-): Promise<LoginResponse> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone_number: phoneNumber, password: password }),
-  });
-  return response.json();
-};
 
 // 모달 컴포넌트
 interface ModalProps {
@@ -74,9 +46,10 @@ const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
+
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth(); // AuthContext에서 login 함수를 가져옴
+  const { login } = useAuth();
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -97,7 +70,7 @@ export default function LoginPage() {
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, "");
     if (numbers.length <= 3) return numbers;
-    if (numbers.length >= 7)
+    if (numbers.length <= 7)
       return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(
       7,
@@ -110,37 +83,7 @@ export default function LoginPage() {
     setPhoneNumber(formatted.replace(/-/g, ""));
   };
 
-  const handleFastAPILogin = async () => {
-    try {
-      const result = await loginWithFastAPI(phoneNumber, password);
-
-      if (result.success && result.data) {
-        // JWT 토큰 저장
-        localStorage.setItem("access_token", result.data.access_token);
-        localStorage.setItem("user_info", JSON.stringify(result.data.user));
-
-        // 로그인 상태 변경
-        login();
-        router.push("/");
-      } else {
-        setModal({
-          isOpen: true,
-          title: "로그인 실패",
-          message:
-            result.message || "핸드폰 번호 또는 비밀번호가 올바르지 않습니다.",
-          type: "error",
-        });
-      }
-    } catch (error) {
-      setModal({
-        isOpen: true,
-        title: "네트워크 오류",
-        message: "서버 연결에 실패했습니다. 다시 시도해주세요.",
-        type: "error",
-      });
-    }
-  };
-
+  // 로그인 처리
   const handleLogin = async () => {
     if (!phoneNumber || phoneNumber.length < 10) {
       setModal({
@@ -163,6 +106,26 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
+
+    try {
+      const result = await authAPI.login(phoneNumber, password);
+
+      // AuthContext를 통해 로그인 상태 설정
+      login(result.access_token, result.user);
+
+      // 메인 페이지로 리다이렉트
+      router.push("/");
+    } catch (error: any) {
+      setModal({
+        isOpen: true,
+        title: "로그인 실패",
+        message:
+          error.message || "핸드폰 번호 또는 비밀번호가 올바르지 않습니다.",
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -194,6 +157,7 @@ export default function LoginPage() {
               onChange={handlePhoneChange}
               onKeyPress={handleKeyPress}
               maxLength={13}
+              disabled={isLoading}
             />
           </div>
 
@@ -211,6 +175,7 @@ export default function LoginPage() {
               }
               onKeyPress={handleKeyPress}
               maxLength={6}
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -241,8 +206,45 @@ export default function LoginPage() {
 
         {/* 비밀번호 찾기 (향후 구현) */}
         <div className="text-center mt-4">
-          <button className="text-sm text-gray-500 hover:text-gray-700">
+          <button
+            className="text-sm text-gray-500 hover:text-gray-700"
+            onClick={() =>
+              setModal({
+                isOpen: true,
+                title: "서비스 준비 중",
+                message: "비밀번호 찾기 기능은 준비 중입니다.",
+                type: "info",
+              })
+            }
+          >
             비밀번호를 잊으셨나요?
+          </button>
+        </div>
+
+        {/* API 연결 상태 표시 (개발용) */}
+        <div className="text-center mt-4">
+          <button
+            onClick={async () => {
+              try {
+                await authAPI.test();
+                setModal({
+                  isOpen: true,
+                  title: "연결 성공",
+                  message: "서버와 정상적으로 연결되었습니다.",
+                  type: "success",
+                });
+              } catch (error) {
+                setModal({
+                  isOpen: true,
+                  title: "연결 실패",
+                  message: "서버 연결에 실패했습니다.",
+                  type: "error",
+                });
+              }
+            }}
+            className="text-xs text-gray-400 hover:text-gray-600"
+          >
+            서버 연결 테스트
           </button>
         </div>
       </div>

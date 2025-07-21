@@ -1,20 +1,10 @@
 // app/auth/register/page.tsx
-"use client"; // 클라이언트 컴포넌트로 지정
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/contexts/AuthContext"; // useAuth 훅 임포트 경로 수정
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-// SMS 인증번호 발송
+import { useAuth } from "@/app/contexts/AuthContext";
+import { authAPI } from "@/lib/api";
 
 // 회원가입 단계 타입
 type RegisterStep = "phone" | "verification" | "password";
@@ -76,13 +66,14 @@ const Modal: React.FC<ModalProps> = ({
 // 회원가입 페이지 컴포넌트
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuth(); // AuthContext에서 login 함수를 가져옴
+  const { login } = useAuth();
 
   const [step, setStep] = useState<RegisterStep>("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [userName, setUserName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState<{
     isOpen: boolean;
@@ -111,21 +102,32 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    // 실제 SMS 발송 로직 (지금은 시뮬레이션)
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await authAPI.sendSMS(phoneNumber);
+
       setStep("verification");
       setModal({
         isOpen: true,
         title: "인증번호 발송",
-        message: `${phoneNumber}로 인증번호를 발송했습니다.`,
+        message:
+          result.message ||
+          `${formatPhoneNumber(phoneNumber)}로 인증번호를 발송했습니다.`,
         type: "success",
       });
-    }, 1000);
+    } catch (error: any) {
+      setModal({
+        isOpen: true,
+        title: "발송 실패",
+        message: error.message || "인증번호 발송에 실패했습니다.",
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 인증번호 확인
-  const verifyCode = () => {
+  const verifyCode = async () => {
     if (verificationCode !== "123456") {
       //실제로는 서버에서 검증
       setModal({
@@ -136,7 +138,29 @@ export default function RegisterPage() {
       });
       return;
     }
-    setStep("password");
+
+    setIsLoading(true);
+
+    try {
+      const result = await authAPI.verifySMS(phoneNumber, verificationCode);
+
+      setStep("password");
+      setModal({
+        isOpen: true,
+        title: "인증 완료",
+        message: result.message || "핸드폰 번호 인증이 완료되었습니다.",
+        type: "success",
+      });
+    } catch (error: any) {
+      setModal({
+        isOpen: true,
+        title: "인증 실패",
+        message: error.message || "인증번호가 올바르지 않습니다.",
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 회원가입 완료
@@ -164,21 +188,14 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Firebase Auth로 계정 생성 (이메일 대신 폰번호@farmtoken.com 사용)
-      const email = `${phoneNumber}@farmtoken.com`;
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
+      const result = await authAPI.register(
+        phoneNumber,
+        password,
+        userName || undefined
       );
 
-      // Firestore에 사용자 정보 저장
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        phoneNumber,
-        createdAt: new Date().toISOString(),
-        userType: "customer",
-        kycStatus: "pending",
-      });
+      // 로그인 상태로 변경
+      login(result.access_token, result.user);
 
       setModal({
         isOpen: true,
@@ -186,7 +203,6 @@ export default function RegisterPage() {
         message: "회원가입이 완료되었습니다!",
         type: "success",
         onConfirm: () => {
-          login(); // AuthContext의 로그인 상태 변경
           router.push("/");
         },
       });
@@ -195,7 +211,7 @@ export default function RegisterPage() {
         isOpen: true,
         title: "회원가입 실패",
         message: error.message || "회원가입 중 오류가 발생했습니다.",
-        type: "error",
+        type: error,
       });
     } finally {
       setIsLoading(false);
@@ -272,6 +288,11 @@ export default function RegisterPage() {
             </h1>
             <p className="text-gray-600 mb-6 text-sm">
               {formatPhoneNumber(phoneNumber)}로 발송된 6자리 번호
+            </p>
+            <p className="text-orange-600 mb-6 text-sm font-medium">
+              🧪 테스트 환경: 인증번호는{" "}
+              <code className="bg-orange-100 px-2 py-1 rounded">123456</code>{" "}
+              입니다
             </p>
             <div className="mb-6">
               <input
