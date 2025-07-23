@@ -1,44 +1,86 @@
 // app/contexts/AuthContext.tsx
 "use client"; // 클라이언트 컴포넌트로 지정
 
-import { useState, createContext, useContext, useEffect } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
+import { authAPI, tokenUtils, User } from "@/lib/api";
 
 interface AuthContextType {
-  isLoggedIn: boolean;
-  login: () => void;
+  isAuthenticated: boolean;
+  user: User | null;
+  login: (token: string, user: User) => void;
   logout: () => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // 실제 앱에서는 로컬 스토리지나 쿠키에서 로그인 상태를 로드할 수 있습니다.
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 초기 로드 시 로그인 상태 확인 (예: 토큰 유무)
+  // 초기 인증 상태 확인
   useEffect(() => {
-    // 여기서는 간단히 false로 시작하지만, 실제로는 토큰 검사 등을 수행
-    // const token = localStorage.getItem('authToken');
-    // if (token) setIsLoggedIn(true);
+    const checkAuthStatus = async () => {
+      try {
+        const token = tokenUtils.getToken();
+        const savedUser = tokenUtils.getUserInfo();
+
+        if (token && savedUser) {
+          // 저장된 토큰으로 사용자 정보 재검증
+          try {
+            const currentUser = await authAPI.getCurrentUser();
+            setUser(currentUser);
+            setIsAuthenticated(true);
+            tokenUtils.setUserInfo(currentUser); // 최신정보로 업데이트
+          } catch (error) {
+            // 토큰이 만료되었거나 유효하지 않음
+            console.error("Token validation failed:", error);
+            tokenUtils.removeToken();
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        tokenUtils.removeToken();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
-  const login = () => {
-    setIsLoggedIn(true);
-    // 실제 로그인 시 토큰 저장 등의 로직 추가
-    // localStorage.setItem('authToken', 'your_auth_token');
+  const login = (token: string, userData: User) => {
+    tokenUtils.setToken(token);
+    tokenUtils.setUserInfo(userData);
+    setUser(userData);
+    setIsAuthenticated(true);
   };
-  const logout = () => {
-    setIsLoggedIn(false);
-    // 실제 로그아웃 시 토큰 삭제 등의 로직 추가
-    // localStorage.removeItem('authToken');
+
+  const logout = async () => {
+    try {
+      // 서버에 로그아웃 요청
+      await authAPI.logout();
+    } catch (error) {
+      console.error("Logout API failed:", error);
+    } finally {
+      // 로컬 상태 정리
+      tokenUtils.removeToken();
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, user, login, logout, isLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
