@@ -1,51 +1,51 @@
 // app/contexts/AuthContext.tsx
-"use client"; // 클라이언트 컴포넌트로 지정
+"use client";
 
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { authAPI, tokenUtils, User } from "@/lib/api";
 
 interface AuthContextType {
-  isAuthenticated: boolean;
+  isLoggedIn: boolean;
   user: User | null;
   login: (token: string, user: User) => void;
   logout: () => void;
-  isLoading: boolean;
+  updateUser: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // 초기 인증 상태 확인
+  // 초기 로드 시 토큰 확인
   useEffect(() => {
     const checkAuthStatus = async () => {
-      try {
-        const token = tokenUtils.getToken();
-        const savedUser = tokenUtils.getUserInfo();
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        try {
+          // 백엔드 /api/auth/me 엔드포인트로 사용자 정보 확인
+          const response = await fetch("/api/auth/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
 
-        if (token && savedUser) {
-          // 저장된 토큰으로 사용자 정보 재검증
-          try {
-            const currentUser = await authAPI.getCurrentUser();
-            setUser(currentUser);
-            setIsAuthenticated(true);
-            tokenUtils.setUserInfo(currentUser); // 최신정보로 업데이트
-          } catch (error) {
-            // 토큰이 만료되었거나 유효하지 않음
-            console.error("Token validation failed:", error);
-            tokenUtils.removeToken();
-            setUser(null);
-            setIsAuthenticated(false);
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            setIsLoggedIn(true);
+          } else {
+            // 토큰이 유효하지 않으면 제거
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user_info");
           }
+        } catch (error) {
+          console.error("토큰 검증 실패:", error);
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("user_info");
         }
-      } catch (error) {
-        console.error("Auth check failed:", error);
-        tokenUtils.removeToken();
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -53,29 +53,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (token: string, userData: User) => {
-    tokenUtils.setToken(token);
-    tokenUtils.setUserInfo(userData);
+    // 토큰과 사용자 정보 저장
+    localStorage.setItem("access_token", token);
+    localStorage.setItem("user_info", JSON.stringify(userData));
+
     setUser(userData);
-    setIsAuthenticated(true);
+    setIsLoggedIn(true);
   };
 
   const logout = async () => {
     try {
-      // 서버에 로그아웃 요청
-      await authAPI.logout();
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        // 백엔드 로그아웃 API 호출
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            Authrization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
     } catch (error) {
-      console.error("Logout API failed:", error);
+      console.log("로그아웃 API 호출 실패:", error);
     } finally {
-      // 로컬 상태 정리
-      tokenUtils.removeToken();
+      // 로컬 스토리지 정리 및 상태 초기화
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user_info");
       setUser(null);
-      setIsAuthenticated(false);
+      setIsLoggedIn(false);
     }
+  };
+
+  const updateUser = (userData: User) => {
+    localStorage.setItem("user_info", JSON.stringify(userData));
+    setUser(userData);
   };
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, login, logout, isLoading }}
+      value={{ isLoggedIn, user, login, logout, updateUser }}
     >
       {children}
     </AuthContext.Provider>
