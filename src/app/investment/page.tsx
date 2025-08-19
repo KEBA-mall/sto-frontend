@@ -2,9 +2,7 @@
 "use client";
 
 import React from "react";
-import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { useProducts } from "@/hooks/useProducts";
 import { formatCurrency, formatPercentage } from "@/utils/helpers";
 
@@ -12,7 +10,7 @@ export default function InvestmentPage() {
   const { products, loading, error } = useProducts();
 
   // 카테고리별 이모지 매핑
-  const getCategoryEmoji = (category: string, subcategory: string) => {
+  const getCategoryEmoji = (category: string, subcategory?: string) => {
     const emojiMap: { [key: string]: string } = {
       농산물: subcategory?.includes("감귤")
         ? "🍊"
