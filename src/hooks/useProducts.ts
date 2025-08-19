@@ -1,5 +1,5 @@
 // src/hooks/useProducts.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Product 타입 정의
 export interface Product {
@@ -36,7 +36,6 @@ interface ProductsResponse {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_PREFIX = process.env.NEXT_PUBLIC_API_PREFIX || "/api";
 
 // 전체 상품 조회 훅
 export const useProducts = () => {
@@ -44,7 +43,7 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,11 +65,11 @@ export const useProducts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   return {
     products,
@@ -86,7 +85,7 @@ export const useTopProducts = (limit: number = 5) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTopProducts = async () => {
+  const fetchTopProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -112,11 +111,11 @@ export const useTopProducts = (limit: number = 5) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit]);
 
   useEffect(() => {
     fetchTopProducts();
-  }, [limit]);
+  }, [fetchTopProducts]);
 
   return {
     topProducts,
@@ -132,14 +131,12 @@ export const usePopularProduct = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPopularProduct = async () => {
+  const fetchPopularProduct = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/${API_PREFIX}/products/popular`
-      );
+      const response = await fetch(`${API_BASE_URL}/api/products/popular`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -162,11 +159,11 @@ export const usePopularProduct = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchPopularProduct();
-  }, []);
+  }, [fetchPopularProduct]);
 
   return {
     popularProduct,
@@ -182,7 +179,7 @@ export const useProduct = (productId: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     if (!productId) return;
 
     try {
@@ -209,11 +206,11 @@ export const useProduct = (productId: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
 
   useEffect(() => {
     fetchProduct();
-  }, [productId]);
+  }, [fetchProduct]);
 
   return {
     product,
