@@ -47,6 +47,46 @@ const Modal: React.FC<ModalProps> = ({
   );
 };
 
+// API 에러 타입 정의
+interface ApiError {
+  message: string;
+}
+
+// 백엔드 API 응답 타입 (실제 응답)
+interface BackendUser {
+  user_id: number;
+  phone_number: string;
+  user_name?: string;
+  user_type: string;
+}
+
+// AuthContext에서 기대하는 User 타입
+interface User {
+  user_id: number;
+  phone_number: string;
+  user_name?: string;
+  user_type: string;
+  kyc_status: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Login API 응답 타입 정의
+interface LoginResponse {
+  access_token: string;
+  user: BackendUser;
+}
+
+// 백엔드 User 타입을 AuthContext User 타입으로 변환
+const transformUser = (backendUser: BackendUser): User => {
+  return {
+    ...backendUser,
+    kyc_status: "pending", // 기본값
+    is_active: true, // 기본값
+    created_at: new Date().toISOString(), // 현재 시간
+  };
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
@@ -108,19 +148,24 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await authAPI.login(phoneNumber, password);
+      const result: LoginResponse = await authAPI.login(phoneNumber, password);
+
+      // 백엔드 User를 AuthContext User로 변환
+      const transformedUser = transformUser(result.user);
 
       // AuthContext를 통해 로그인 상태 설정
-      login(result.access_token, result.user);
+      login(result.access_token, transformedUser);
 
       // 메인 페이지로 리다이렉트
       router.push("/");
-    } catch (error: any) {
+    } catch (error) {
+      // error의 타입을 안전하게 처리
+      const apiError = error as ApiError;
       setModal({
         isOpen: true,
         title: "로그인 실패",
         message:
-          error.message || "핸드폰 번호 또는 비밀번호가 올바르지 않습니다.",
+          apiError.message || "핸드폰 번호 또는 비밀번호가 올바르지 않습니다.",
         type: "error",
       });
     } finally {
@@ -233,7 +278,8 @@ export default function LoginPage() {
                   message: "서버와 정상적으로 연결되었습니다.",
                   type: "success",
                 });
-              } catch (error) {
+              } catch (testError) {
+                console.error("Server connection test failed:", testError);
                 setModal({
                   isOpen: true,
                   title: "연결 실패",
