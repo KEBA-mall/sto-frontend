@@ -2,8 +2,8 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_PREFIX = process.env.NEXT_PUBLIC_API_PREFIX || "/api";
 
-// API 응답 타입 정의
-export interface ApiResponse<T = any> {
+// API 응답 타입 정의 (제네릭 타입을 구체적으로 정의)
+export interface ApiResponse<T = Record<string, unknown>> {
   success: boolean;
   message: string;
   data?: T;
@@ -33,7 +33,7 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
 
-  const defaultHeaders = {
+  const defaultHeaders: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
