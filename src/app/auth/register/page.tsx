@@ -9,6 +9,44 @@ import { authAPI } from "@/lib/api";
 // 회원가입 단계 타입
 type RegisterStep = "phone" | "verification" | "password";
 
+// API 에러 타입 정의
+interface ApiError {
+  message: string;
+}
+
+// API 응답 타입 정의
+interface SMSResponse {
+  message: string;
+}
+
+interface VerificationResponse {
+  message: string;
+}
+
+// 백엔드 API 응답 타입 (실제 응답)
+interface BackendUser {
+  user_id: number;
+  phone_number: string;
+  user_name?: string;
+  user_type: string;
+}
+
+// AuthContext에서 기대하는 User 타입
+interface User {
+  user_id: number;
+  phone_number: string;
+  user_name?: string;
+  user_type: string;
+  kyc_status: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface RegisterResponse {
+  access_token: string;
+  user: BackendUser;
+}
+
 // 모달 컴포넌트
 interface ModalProps {
   isOpen: boolean;
@@ -63,6 +101,16 @@ const Modal: React.FC<ModalProps> = ({
   );
 };
 
+// 백엔드 User 타입을 AuthContext User 타입으로 변환
+const transformUser = (backendUser: BackendUser): User => {
+  return {
+    ...backendUser,
+    kyc_status: "pending", // 기본값
+    is_active: true, // 기본값
+    created_at: new Date().toISOString(), // 현재 시간
+  };
+};
+
 // 회원가입 페이지 컴포넌트
 export default function RegisterPage() {
   const router = useRouter();
@@ -73,7 +121,6 @@ export default function RegisterPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [userName, setUserName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState<{
     isOpen: boolean;
@@ -94,7 +141,7 @@ export default function RegisterPage() {
       setModal({
         isOpen: true,
         title: "입력 오류",
-        message: "올바른 핸도픈 번호를 입력해주세요.",
+        message: "올바른 핸드폰 번호를 입력해주세요.",
         type: "error",
       });
       return;
@@ -103,7 +150,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const result = await authAPI.sendSMS(phoneNumber);
+      const result: SMSResponse = await authAPI.sendSMS(phoneNumber);
 
       setStep("verification");
       setModal({
@@ -114,11 +161,12 @@ export default function RegisterPage() {
           `${formatPhoneNumber(phoneNumber)}로 인증번호를 발송했습니다.`,
         type: "success",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = error as ApiError;
       setModal({
         isOpen: true,
         title: "발송 실패",
-        message: error.message || "인증번호 발송에 실패했습니다.",
+        message: apiError.message || "인증번호 발송에 실패했습니다.",
         type: "error",
       });
     } finally {
@@ -142,7 +190,10 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const result = await authAPI.verifySMS(phoneNumber, verificationCode);
+      const result: VerificationResponse = await authAPI.verifySMS(
+        phoneNumber,
+        verificationCode
+      );
 
       setStep("password");
       setModal({
@@ -151,11 +202,12 @@ export default function RegisterPage() {
         message: result.message || "핸드폰 번호 인증이 완료되었습니다.",
         type: "success",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = error as ApiError;
       setModal({
         isOpen: true,
         title: "인증 실패",
-        message: error.message || "인증번호가 올바르지 않습니다.",
+        message: apiError.message || "인증번호가 올바르지 않습니다.",
         type: "error",
       });
     } finally {
@@ -188,14 +240,17 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const result = await authAPI.register(
+      const result: RegisterResponse = await authAPI.register(
         phoneNumber,
         password,
-        userName || undefined
+        undefined
       );
 
+      // 백엔드 User를 AuthContext User로 변환
+      const transformedUser = transformUser(result.user);
+
       // 로그인 상태로 변경
-      login(result.access_token, result.user);
+      login(result.access_token, transformedUser);
 
       setModal({
         isOpen: true,
@@ -206,12 +261,13 @@ export default function RegisterPage() {
           router.push("/");
         },
       });
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = error as ApiError;
       setModal({
         isOpen: true,
         title: "회원가입 실패",
-        message: error.message || "회원가입 중 오류가 발생했습니다.",
-        type: error,
+        message: apiError.message || "회원가입 중 오류가 발생했습니다.",
+        type: "error",
       });
     } finally {
       setIsLoading(false);
